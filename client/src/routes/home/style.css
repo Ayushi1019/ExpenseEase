@@ -1,0 +1,31 @@
+.container{
+    display: flex;
+    justify-content: space-around;
+    padding-bottom: 100px;
+    padding-top:20px;
+}
+
+.setting-segment{
+    display: flex;
+    padding:50px;
+    justify-content: space-between;
+}
+
+.segment-container{
+    width: 800px;
+    display: flex;
+    justify-content: center;
+    height: 70px;
+    margin-top: 60px;
+}
+
+.segment-section{
+    width: 120px;
+    display: flex;
+    justify-content: flex-start;
+    height: 60px;
+}
+
+.form-section{
+    
+}

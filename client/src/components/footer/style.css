@@ -1,0 +1,27 @@
+.footer{
+    background-color: #00a62a;
+    color: white;
+    height: 60px;
+    bottom: 0px !important;
+    display: flex;
+    position: fixed; 
+    width: 100%;
+    justify-content: center;
+    padding-top: 20px !important;
+    font-size: 22px;
+}
+
+  .nav-left-bar{
+    width: 50%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-right:50px;
+  }
+  
+  .nav-button{
+    cursor: pointer;
+  }
+  
+  
