@@ -3,29 +3,21 @@ package config
 import (
 	"database/sql"
 	"fmt"
-	"log"
-
-	_ "github.com/lib/pq"
 )
 
-// ConnectDB creates a connection to the database
+import _ "github.com/lib/pq"
+
+// ConnectDB connects to the PostgreSQL database
 func ConnectDB() (*sql.DB, error) {
 	config := GetConfig()
-	dbURI := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.DbHost, config.DbPort, config.DbUser, config.DbPass, config.DbName)
-
-	db, err := sql.Open("postgres", dbURI)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		config.DbUser, config.DbPassword, config.DbHost, config.DbPort, config.DbName)
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to connect to database: %v", err)
 	}
-
-	err = db.Ping()
-	if err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
-		return nil, err
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("Failed to ping database: %v", err)
 	}
-
-	fmt.Println("Connected to database")
 	return db, nil
 }

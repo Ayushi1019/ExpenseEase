@@ -1,32 +1,36 @@
 package config
 
 import (
+	"fmt"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
-// Config is a struct that holds the configuration for the application
+// Config is a struct to hold the configuration variables
 type Config struct {
-	Port   string
-	DbHost string
-	DbPort string
-	DbUser string
-	DbPass string
-	DbName string
+	DbHost     string
+	DbPort     string
+	DbUser     string
+	DbPassword string
+	DbName     string
+	Port       string
 }
 
-// GetConfig returns the configuration for the application
+// GetConfig is a function to get the configuration variables
 func GetConfig() Config {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8000"
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println("Error loading .env file")
 	}
 
-	return Config{
-		Port:   port,
-		DbHost: os.Getenv("DB_HOST"),
-		DbPort: os.Getenv("DB_PORT"),
-		DbUser: os.Getenv("DB_USER"),
-		DbPass: os.Getenv("DB_PASS"),
-		DbName: os.Getenv("DB_NAME"),
+	config := Config{
+		DbHost:     os.Getenv("DB_HOST"),
+		DbPort:     os.Getenv("DB_PORT"),
+		DbUser:     os.Getenv("DB_USER"),
+		DbPassword: os.Getenv("DB_PASS"),
+		DbName:     os.Getenv("DB_NAME"),
 	}
+
+	return config
 }
