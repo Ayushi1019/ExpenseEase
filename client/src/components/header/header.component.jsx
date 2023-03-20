@@ -13,9 +13,9 @@ const Header = () => {
           Logo
         </Link>
         
-        <div className='nav-right-bar'>
+        {/* <div className='nav-right-bar'>
             <Button className='nav-signup-button'>SIGN UP</Button>
-        </div>
+        </div> */}
       </div>
       <Outlet />
       <Footer/>

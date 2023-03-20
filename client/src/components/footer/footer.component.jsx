@@ -10,7 +10,10 @@ const Footer = () => {
         <div className='nav-left-bar'>
             <span className='nav-button'>About</span>
         </div>
-      Copyright @2023
+        <div className='nav-left-bar'>
+            <span className='nav-button'> Copyright @2023</span>
+        </div>
+        
       </div>
     </Fragment>
   );
