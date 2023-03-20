@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import Footer from '../footer/footer.component';
-import {Button} from "antd";
+import {Button,Image} from "antd";
 import './style.css'
 
 const Header = () => {
@@ -10,7 +10,7 @@ const Header = () => {
     <Fragment>
       <div className='navigation-container'>
         <Link className='logo-container' to='/'>
-          Logo
+          <Image preview={false} style={{borderRadius:'20px'}} width={60} height={60} src='ee-icon.jpeg'/>
         </Link>
         
         {/* <div className='nav-right-bar'>
