@@ -23,7 +23,6 @@ func GetConfig() Config {
 	if err != nil {
 		fmt.Println("Error loading .env file")
 	}
-
 	config := Config{
 		DbHost:     os.Getenv("DB_HOST"),
 		DbPort:     os.Getenv("DB_PORT"),
