@@ -122,7 +122,7 @@ func (app *App) createUserHandler(userRepo *repositories.UserRepository) http.Ha
 			return
 		}
 
-		respondWithJSON(w, http.StatusCreated, user)
+		respondWithJSON(w, http.StatusCreated, "User Created")
 	}
 }
 
@@ -219,7 +219,6 @@ func (app *App) createIncome(incomeRepo *repositories.IncomeRepository) http.Han
 			respondWithError(w, http.StatusUnauthorized, "Invalid authorization token")
 			return
 		}
-		fmt.Println(claims)
 		userID := int(claims["id"].(float64))
 		fmt.Println(userID)
 
