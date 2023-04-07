@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import './style.css';
 import { Tabs, Image } from "antd";
 import Login from '../../components/login/login.component';
+import Signup from '../../components/signup/signup.component';
 
 const Home = () => {
 
@@ -17,7 +18,7 @@ const Home = () => {
           key: '2',
           label: `Signup`,
           children: <div className='form-section'>
-               Signup Form 
+               <Signup/> 
           </div>,
         },
       ];
