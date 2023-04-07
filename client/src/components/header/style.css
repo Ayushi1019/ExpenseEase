@@ -1,9 +1,5 @@
 .navigation-container{
-<<<<<<< HEAD
-  height: 76px;
-=======
-  height: 110px;
->>>>>>> e540e3f138970010c04a6c828ce3c814922fb1fc
+  height: 100px;
   display: flex;
   width: 100%;
   font-size: 22px;

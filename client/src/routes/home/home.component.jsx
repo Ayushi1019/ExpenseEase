@@ -26,7 +26,7 @@ const Home = () => {
 
     <div className='container'>
         <div className='setting-segment'>
-            <Image src='/home-wall.jpg' />
+            <Image preview={false} src='/home-wall.jpg' />
         </div>
         <div className='segment-container'>
             <Tabs size='large' defaultActiveKey="1" items={items}/>

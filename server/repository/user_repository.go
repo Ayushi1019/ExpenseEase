@@ -61,3 +61,14 @@ func (repo *UserRepository) GetUsers() ([]models.User, error) {
 
 	return users, nil
 }
+
+func (ur *UserRepository) GetUserByEmail(email string) (models.User, error) {
+	var user models.User
+
+	err := ur.DB.QueryRow("SELECT id, name, email, password FROM users WHERE email=$1", email).Scan(&user.ID, &user.Name, &user.Email, &user.Password)
+	if err != nil {
+		return user, err
+	}
+
+	return user, nil
+}

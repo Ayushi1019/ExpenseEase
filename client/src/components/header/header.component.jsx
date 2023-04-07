@@ -10,7 +10,7 @@ const Header = () => {
     <Fragment>
       <div className='navigation-container'>
         <Link className='logo-container' to='/'>
-          <Image preview={false} style={{borderRadius:'20px'}} width={60} height={60} src='ee-icon.jpeg'/>
+          <Image preview={false} style={{borderRadius:'20px'}} width={90} height={60} src='ee-icon.jpeg'/>
         </Link>
         
         {/* <div className='nav-right-bar'>

@@ -15,6 +15,7 @@ type Config struct {
 	DbPassword string
 	DbName     string
 	Port       string
+	JwtSecret  string
 }
 
 // GetConfig is a function to get the configuration variables
@@ -29,6 +30,7 @@ func GetConfig() Config {
 		DbUser:     os.Getenv("DB_USER"),
 		DbPassword: os.Getenv("DB_PASS"),
 		DbName:     os.Getenv("DB_NAME"),
+		JwtSecret:  "",
 	}
 
 	return config
