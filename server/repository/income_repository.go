@@ -3,9 +3,11 @@ package repositories
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 
 	models "ExpenseEase/server/model"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -20,14 +22,17 @@ func NewIncomeRepository(db *sql.DB) *IncomeRepository {
 }
 
 func (repo *IncomeRepository) CreateIncome(income *models.Income) error {
-	statement, err := repo.DB.Prepare("INSERT INTO incomes (user_id, amount, source, date) VALUES ($1, $2, $3, DATE.NOW())")
+	statement, err := repo.DB.Prepare("INSERT INTO incomes(user_id, amount, source, created_at) VALUES ($1, $2, $3, $4)")
 	if err != nil {
 		log.Println("Error preparing SQL statement:", err)
 		return errors.New("could not create income")
 	}
 	defer statement.Close()
 
-	_, err = statement.Exec(income.UserID, income.Amount, income.Source, income.Date)
+	t := time.Now()
+	d := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	fmt.Println(d)
+	_, err = statement.Exec(income.UserID, income.Amount, income.Source, d.Format("2023-01-01"))
 	if err != nil {
 		log.Println("Error executing SQL statement:", err)
 		return errors.New("could not create user")

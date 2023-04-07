@@ -1,13 +1,12 @@
 package app
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -43,15 +42,15 @@ func createTable() error {
 		password TEXT NOT NULL,
 		name TEXT NOT NULL
 	);
-	CREATE TABLE IF NOT EXISTS income (
+	CREATE TABLE IF NOT EXISTS incomes (
 		id SERIAL PRIMARY KEY,
-		name TEXT NOT NULL,
 		amount FLOAT NOT NULL,
-		userID INT,
-		FOREIGN KEY (userID) REFERENCES users(id)
+		source TEXT NOT NULL,
+		created_at DATE NOT NULL,
+		user_id INT,
+		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 	`)
-	fmt.Println("createTable runs", err)
 	if err != nil {
 		return err
 	}
@@ -90,7 +89,7 @@ func (app *App) initializeRoutes(userRepo *repositories.UserRepository, incomeRe
 	app.Router.HandleFunc("/user", app.createUserHandler(userRepo)).Methods("POST")
 	app.Router.HandleFunc("/users", app.getUsersHandler(userRepo)).Methods("Get")
 	app.Router.HandleFunc("/login", app.loginHandler(userRepo)).Methods("POST")
-	// app.Router.HandleFunc("/income", app.createIncome(incomeRepo)).Methods("POST")
+	app.Router.HandleFunc("/income", app.createIncome(incomeRepo)).Methods("POST")
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
@@ -149,12 +148,6 @@ func (app *App) loginHandler(userRepo *repositories.UserRepository) http.Handler
 
 		fetchedUser, err := userRepo.GetUserByEmail(user.Email)
 
-		key := make([]byte, 32)
-		_, err = rand.Read(key)
-		if err != nil {
-			fmt.Println(err)
-		}
-
 		if err != nil {
 			if err == sql.ErrNoRows {
 				respondWithError(w, http.StatusUnauthorized, "Invalid email or password")
@@ -169,14 +162,15 @@ func (app *App) loginHandler(userRepo *repositories.UserRepository) http.Handler
 			return
 		}
 
+		fmt.Println(fetchedUser.ID)
+
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"email": fetchedUser.Email,
-			"exp":   time.Now().Add(time.Hour * 24).Unix(),
+			"id":  fetchedUser.ID,
+			"exp": time.Now().Add(time.Hour * 24).Unix(),
 		})
-		t := base64.StdEncoding.EncodeToString(key)
 		appConfig := config.GetConfig()
-		appConfig.JwtSecret = t
-		tokenString, err := token.SignedString([]byte(t))
+		appConfig.JwtSecret = os.Getenv("JWT_SECRET")
+		tokenString, err := token.SignedString([]byte(appConfig.JwtSecret))
 
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -184,5 +178,64 @@ func (app *App) loginHandler(userRepo *repositories.UserRepository) http.Handler
 		}
 
 		respondWithJSON(w, http.StatusOK, map[string]string{"token": tokenString})
+	}
+}
+
+func (app *App) createIncome(incomeRepo *repositories.IncomeRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		income := models.Income{}
+		err := json.NewDecoder(r.Body).Decode(&income)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		// Extract the JWT token from the request header
+		tokenString := r.Header.Get("Token")
+		if tokenString == "" {
+			respondWithError(w, http.StatusBadRequest, "Missing authorization token")
+			return
+		}
+		appConfig := config.GetConfig()
+		fmt.Println(appConfig.JwtSecret)
+		// Parse and validate the JWT token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			// Return the secret key used to sign the token
+			return []byte(appConfig.JwtSecret), nil
+		})
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, "Invalid authorization token")
+			return
+		}
+
+		// Extract the user ID from the JWT token
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			respondWithError(w, http.StatusUnauthorized, "Invalid authorization token")
+			return
+		}
+		fmt.Println(claims)
+		userID := int(claims["id"].(float64))
+		fmt.Println(userID)
+
+		// Set the user ID in the income object
+		income.UserID = userID
+
+		// Create the income record in the database
+		err = incomeRepo.CreateIncome(&income)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Failed to create income record")
+			return
+		}
+
+		// Return the created income record
+		t := time.Now()
+		income.Created_at = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+		respondWithJSON(w, http.StatusCreated, income)
 	}
 }
