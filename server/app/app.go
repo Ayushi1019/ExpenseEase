@@ -43,13 +43,6 @@ func createTable() error {
 		password TEXT NOT NULL,
 		name TEXT NOT NULL
 	);
-	CREATE TABLE IF NOT EXISTS income (
-		id SERIAL PRIMARY KEY,
-		name TEXT NOT NULL,
-		amount FLOAT NOT NULL,
-		userID INT,
-		FOREIGN KEY (userID) REFERENCES users(id)
-	);
 	`)
 	fmt.Println("createTable runs", err)
 	if err != nil {
