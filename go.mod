@@ -17,7 +17,9 @@ require (
 	github.com/lib/pq v1.10.7 // indirect
 	github.com/rs/cors v1.8.3 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
+	google.golang.org/genproto v0.0.0-20230403163135-c38d8f061ccd // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
 	gorm.io/driver/postgres v1.5.0 // indirect
 	gorm.io/gorm v1.24.7-0.20230306060331-85eaf9eeda11 // indirect
 )

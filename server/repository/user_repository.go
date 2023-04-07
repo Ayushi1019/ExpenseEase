@@ -22,14 +22,14 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 
 // CreateUser creates a new user in the database
 func (repo *UserRepository) CreateUser(user *models.User) error {
-	statement, err := repo.DB.Prepare("INSERT INTO users(id, name, email, password) VALUES ($1, $2, $3, $4)")
+	statement, err := repo.DB.Prepare("INSERT INTO users(name, email, password) VALUES ($1, $2, $3)")
 	if err != nil {
 		log.Println("Error preparing SQL statement:", err)
 		return errors.New("could not create user")
 	}
 	defer statement.Close()
 
-	_, err = statement.Exec(user.ID, user.Name, user.Email, user.Password)
+	_, err = statement.Exec(user.Name, user.Email, user.Password)
 	if err != nil {
 		log.Println("Error executing SQL statement:", err)
 		return errors.New("could not create user")

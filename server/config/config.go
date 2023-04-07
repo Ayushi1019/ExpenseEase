@@ -30,7 +30,7 @@ func GetConfig() Config {
 		DbUser:     os.Getenv("DB_USER"),
 		DbPassword: os.Getenv("DB_PASS"),
 		DbName:     os.Getenv("DB_NAME"),
-		JwtSecret:  "",
+		JwtSecret:  os.Getenv("JWT_SECRET"),
 	}
 
 	return config
