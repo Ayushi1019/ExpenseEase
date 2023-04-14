@@ -7,7 +7,6 @@ import (
 	"log"
 
 	models "ExpenseEase/server/model"
-	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -21,22 +20,53 @@ func NewIncomeRepository(db *sql.DB) *IncomeRepository {
 	return &IncomeRepository{DB: db}
 }
 
-func (repo *IncomeRepository) CreateIncome(income *models.Income) error {
-	statement, err := repo.DB.Prepare("INSERT INTO incomes(user_id, amount, source, created_at) VALUES ($1, $2, $3, $4)")
+func (repo *IncomeRepository) CreateIncome(income *models.Income) (map[string]interface{}, error) {
+	statement, err := repo.DB.Prepare("INSERT INTO incomes(amount, source, created_at) VALUES ($1, $2, $3) RETURNING id, amount, source, created_at")
 	if err != nil {
 		log.Println("Error preparing SQL statement:", err)
-		return errors.New("could not create income")
+		return nil, errors.New("could not create income")
 	}
 	defer statement.Close()
 
-	t := time.Now()
-	d := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
-	fmt.Println(d)
-	_, err = statement.Exec(income.UserID, income.Amount, income.Source, d.Format("2023-01-01"))
+	var id int64
+	var newAmount float64
+	var newSource string
+	var newDate string
+
+	err = statement.QueryRow(income.Amount, income.Source, income.Created_at).Scan(&id, &newAmount, &newSource, &newDate)
 	if err != nil {
 		log.Println("Error executing SQL statement:", err)
-		return errors.New("could not create user")
+		return nil, errors.New("could not create user")
 	}
 
-	return nil
+	fmt.Printf("New income added with id %d, amount %.2f, source %s, date %s\n", id, newAmount, newSource, newDate)
+
+	return map[string]interface{}{
+		"id":         id,
+		"amount":     newAmount,
+		"source":     newSource,
+		"created_at": newDate,
+	}, nil
+}
+
+func (repo *IncomeRepository) GetAllIncomes(user_id int) ([]models.Income, error) {
+	rows, err := repo.DB.Query("SELECT * FROM incomes WHERE user_id=$1", user_id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var incomes []models.Income
+	for rows.Next() {
+		income := models.Income{}
+		err := rows.Scan(&income.ID, &income.Amount, &income.Source, &income.Created_at, &income.UserID)
+		if err != nil {
+			return nil, err
+		}
+		incomes = append(incomes, income)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return incomes, nil
 }

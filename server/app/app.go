@@ -36,6 +36,8 @@ func createTable() error {
 	defer db.Close()
 
 	_, err = db.Exec(`
+	// DROP TABLE if exists incomes;
+	// DROP TABLE if exists users;
 	CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
 		email TEXT NOT NULL,
@@ -46,7 +48,7 @@ func createTable() error {
 		id SERIAL PRIMARY KEY,
 		amount FLOAT NOT NULL,
 		source TEXT NOT NULL,
-		created_at DATE NOT NULL,
+		created_at TEXT NOT NULL,
 		user_id INT,
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
@@ -87,13 +89,15 @@ func (app *App) Run(addr string) {
 
 func (app *App) initializeRoutes(userRepo *repositories.UserRepository, incomeRepo *repositories.IncomeRepository) {
 	app.Router.HandleFunc("/user", app.createUserHandler(userRepo)).Methods("POST")
-	app.Router.HandleFunc("/users", app.getUsersHandler(userRepo)).Methods("Get")
+	app.Router.HandleFunc("/users", app.getUsersHandler(userRepo)).Methods("GET")
 	app.Router.HandleFunc("/login", app.loginHandler(userRepo)).Methods("POST")
 	app.Router.HandleFunc("/income", app.createIncome(incomeRepo)).Methods("POST")
+	app.Router.HandleFunc("/incomes", app.getAllIncomes(incomeRepo)).Methods("GET")
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	response, err := json.Marshal(payload)
+	fmt.Println(payload)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "JSON encoding error")
 		return
@@ -191,7 +195,7 @@ func (app *App) createIncome(incomeRepo *repositories.IncomeRepository) http.Han
 		}
 
 		// Extract the JWT token from the request header
-		tokenString := r.Header.Get("Token")
+		tokenString := r.Header.Get("Authorization")
 		if tokenString == "" {
 			respondWithError(w, http.StatusBadRequest, "Missing authorization token")
 			return
@@ -225,16 +229,68 @@ func (app *App) createIncome(incomeRepo *repositories.IncomeRepository) http.Han
 		// Set the user ID in the income object
 		income.UserID = userID
 
+		d, err := time.Parse(time.RFC3339, income.Created_at)
+		if err != nil {
+			fmt.Println(err)
+		}
+		income.Created_at = d.Format("2006-01-02")
+
 		// Create the income record in the database
-		err = incomeRepo.CreateIncome(&income)
+		result, err := incomeRepo.CreateIncome(&income)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Failed to create income record")
 			return
 		}
 
 		// Return the created income record
-		t := time.Now()
-		income.Created_at = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
-		respondWithJSON(w, http.StatusCreated, income)
+		// t := time.Now()
+		// income.Created_at = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+		respondWithJSON(w, http.StatusCreated, result)
+	}
+}
+
+func (app *App) getAllIncomes(incomeRepo *repositories.IncomeRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			respondWithError(w, http.StatusBadRequest, "Missing authorization token")
+			return
+		}
+		appConfig := config.GetConfig()
+		fmt.Println(appConfig.JwtSecret)
+		// Parse and validate the JWT token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			// Return the secret key used to sign the token
+			return []byte(appConfig.JwtSecret), nil
+		})
+
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		userID := int(claims["id"].(float64))
+		fmt.Println(userID)
+		incomes, err := incomeRepo.GetAllIncomes(userID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		fmt.Println(incomes)
+
+		respondWithJSON(w, http.StatusOK, incomes)
 	}
 }
