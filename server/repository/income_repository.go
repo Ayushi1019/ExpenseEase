@@ -71,7 +71,7 @@ func (repo *IncomeRepository) GetAllIncomes(user_id int) ([]models.Income, error
 	return incomes, nil
 }
 
-func (repo *IncomeRepository) UpdateIncome(incomeID int, income *models.Income) (*models.Income, error) {
+func (repo *IncomeRepository) UpdateIncome(incomeID int, income *models.Income) (map[string]interface{}, error) {
 	query := `UPDATE incomes SET amount = $1, source = $2, created_at = $3 WHERE id = $4`
 	_, err := repo.DB.Exec(query, income.Amount, income.Source, income.Created_at, incomeID)
 	if err != nil {
@@ -87,5 +87,20 @@ func (repo *IncomeRepository) UpdateIncome(incomeID int, income *models.Income) 
 		return nil, err
 	}
 
-	return &updatedIncome, nil
+	return map[string]interface{}{
+		"id":         &updatedIncome.ID,
+		"amount":     &updatedIncome.Amount,
+		"source":     &updatedIncome.Source,
+		"created_at": &updatedIncome.Created_at,
+	}, nil
+}
+
+func (repo *IncomeRepository) DeleteIncome(incomeID int) error {
+	query := `DELETE FROM incomes WHERE id = $1`
+	_, err := repo.DB.Exec(query, incomeID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

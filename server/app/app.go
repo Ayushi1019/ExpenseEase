@@ -84,7 +84,7 @@ func (app *App) Run(addr string) {
 
 	handler := c.Handler(app.Router)
 
-	fmt.Println("Listening on port 8081...")
+	fmt.Println("Listening on port 8080...")
 	log.Fatal(http.ListenAndServe(addr, handler))
 }
 
@@ -95,6 +95,7 @@ func (app *App) initializeRoutes(userRepo *repositories.UserRepository, incomeRe
 	app.Router.HandleFunc("/income", app.createIncome(incomeRepo)).Methods("POST")
 	app.Router.HandleFunc("/incomes", app.getAllIncomes(incomeRepo)).Methods("GET")
 	app.Router.HandleFunc("/income/{incomeID}", app.editIncome(incomeRepo)).Methods("PUT")
+	app.Router.HandleFunc("/income/{incomeID}", app.deleteIncome(incomeRepo)).Methods("DELETE")
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
@@ -300,6 +301,45 @@ func (app *App) getAllIncomes(incomeRepo *repositories.IncomeRepository) http.Ha
 
 func (a *App) editIncome(incomeRepo *repositories.IncomeRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			respondWithError(w, http.StatusBadRequest, "Missing authorization token")
+			return
+		}
+		appConfig := config.GetConfig()
+		// Parse and validate the JWT token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			// Return the secret key used to sign the token
+			return []byte(appConfig.JwtSecret), nil
+		})
+
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		// Decode request body into Income struct
+		var income *models.Income
+		err = json.NewDecoder(r.Body).Decode(&income)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		userID := int(claims["id"].(float64))
+		fmt.Println(userID, "----------userID")
+
 		// Get income ID from URL parameters
 		incomeID := mux.Vars(r)["incomeID"]
 		fmt.Println(incomeID)
@@ -311,15 +351,15 @@ func (a *App) editIncome(incomeRepo *repositories.IncomeRepository) http.Handler
 			return
 		}
 
-		// Decode request body into Income struct
-		var income *models.Income
-		decoder := json.NewDecoder(r.Body)
-		if err := decoder.Decode(&income); err != nil {
-			respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		income.UserID = userID
+		income.ID, err = strconv.Atoi(incomeID)
+
+		fmt.Println("income---------", income)
+
+		if err != nil {
+			fmt.Println("error with incomeID")
 			return
 		}
-		defer r.Body.Close()
-
 		// Update income in database
 		updatedIncome, err := incomeRepo.UpdateIncome(id, income)
 		if err != nil {
@@ -328,5 +368,28 @@ func (a *App) editIncome(incomeRepo *repositories.IncomeRepository) http.Handler
 		}
 
 		respondWithJSON(w, http.StatusOK, updatedIncome)
+	}
+}
+
+func (a *App) deleteIncome(incomeRepo *repositories.IncomeRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get income ID from URL parameters
+		incomeID := mux.Vars(r)["incomeID"]
+		fmt.Println(incomeID)
+
+		// Parse income ID to int
+		id, err := strconv.Atoi(incomeID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid income ID")
+			return
+		}
+
+		// Delete income from database
+		if err := incomeRepo.DeleteIncome(id); err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		respondWithJSON(w, http.StatusOK, map[string]string{"message": "Income deleted successfully"})
 	}
 }
