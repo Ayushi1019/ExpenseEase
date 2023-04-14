@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -83,7 +84,7 @@ func (app *App) Run(addr string) {
 
 	handler := c.Handler(app.Router)
 
-	fmt.Println("Listening on port 8080...")
+	fmt.Println("Listening on port 8081...")
 	log.Fatal(http.ListenAndServe(addr, handler))
 }
 
@@ -93,6 +94,7 @@ func (app *App) initializeRoutes(userRepo *repositories.UserRepository, incomeRe
 	app.Router.HandleFunc("/login", app.loginHandler(userRepo)).Methods("POST")
 	app.Router.HandleFunc("/income", app.createIncome(incomeRepo)).Methods("POST")
 	app.Router.HandleFunc("/incomes", app.getAllIncomes(incomeRepo)).Methods("GET")
+	app.Router.HandleFunc("/income/{incomeID}", app.editIncome(incomeRepo)).Methods("PUT")
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
@@ -234,9 +236,11 @@ func (app *App) createIncome(incomeRepo *repositories.IncomeRepository) http.Han
 			fmt.Println(err)
 		}
 		income.Created_at = d.Format("2006-01-02")
+		fmt.Println(income)
 
 		// Create the income record in the database
 		result, err := incomeRepo.CreateIncome(&income)
+
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Failed to create income record")
 			return
@@ -258,7 +262,6 @@ func (app *App) getAllIncomes(incomeRepo *repositories.IncomeRepository) http.Ha
 			return
 		}
 		appConfig := config.GetConfig()
-		fmt.Println(appConfig.JwtSecret)
 		// Parse and validate the JWT token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			// Validate the signing method
@@ -292,5 +295,38 @@ func (app *App) getAllIncomes(incomeRepo *repositories.IncomeRepository) http.Ha
 		fmt.Println(incomes)
 
 		respondWithJSON(w, http.StatusOK, incomes)
+	}
+}
+
+func (a *App) editIncome(incomeRepo *repositories.IncomeRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get income ID from URL parameters
+		incomeID := mux.Vars(r)["incomeID"]
+		fmt.Println(incomeID)
+
+		// Parse income ID to int
+		id, err := strconv.Atoi(incomeID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid income ID")
+			return
+		}
+
+		// Decode request body into Income struct
+		var income *models.Income
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&income); err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+		defer r.Body.Close()
+
+		// Update income in database
+		updatedIncome, err := incomeRepo.UpdateIncome(id, income)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		respondWithJSON(w, http.StatusOK, updatedIncome)
 	}
 }

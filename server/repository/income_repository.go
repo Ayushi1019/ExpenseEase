@@ -21,7 +21,7 @@ func NewIncomeRepository(db *sql.DB) *IncomeRepository {
 }
 
 func (repo *IncomeRepository) CreateIncome(income *models.Income) (map[string]interface{}, error) {
-	statement, err := repo.DB.Prepare("INSERT INTO incomes(amount, source, created_at) VALUES ($1, $2, $3) RETURNING id, amount, source, created_at")
+	statement, err := repo.DB.Prepare("INSERT INTO incomes(amount, source, created_at,user_id) VALUES ($1, $2, $3, $4) RETURNING id, amount, source, created_at")
 	if err != nil {
 		log.Println("Error preparing SQL statement:", err)
 		return nil, errors.New("could not create income")
@@ -33,7 +33,7 @@ func (repo *IncomeRepository) CreateIncome(income *models.Income) (map[string]in
 	var newSource string
 	var newDate string
 
-	err = statement.QueryRow(income.Amount, income.Source, income.Created_at).Scan(&id, &newAmount, &newSource, &newDate)
+	err = statement.QueryRow(income.Amount, income.Source, income.Created_at, income.UserID).Scan(&id, &newAmount, &newSource, &newDate)
 	if err != nil {
 		log.Println("Error executing SQL statement:", err)
 		return nil, errors.New("could not create user")
@@ -69,4 +69,23 @@ func (repo *IncomeRepository) GetAllIncomes(user_id int) ([]models.Income, error
 		return nil, err
 	}
 	return incomes, nil
+}
+
+func (repo *IncomeRepository) UpdateIncome(incomeID int, income *models.Income) (*models.Income, error) {
+	query := `UPDATE incomes SET amount = $1, source = $2, created_at = $3 WHERE id = $4`
+	_, err := repo.DB.Exec(query, income.Amount, income.Source, income.Created_at, incomeID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Query for the updated record
+	query = `SELECT id, amount, source, created_at FROM incomes WHERE id = $1`
+	row := repo.DB.QueryRow(query, income.ID)
+	var updatedIncome models.Income
+	err = row.Scan(&updatedIncome.ID, &updatedIncome.Amount, &updatedIncome.Source, &updatedIncome.Created_at)
+	if err != nil {
+		return nil, err
+	}
+
+	return &updatedIncome, nil
 }
