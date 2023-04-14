@@ -22,11 +22,12 @@ import (
 )
 
 type App struct {
-	Router           *mux.Router
-	DB               *sql.DB
-	Config           *config.Config
-	UserRepository   *repositories.UserRepository
-	IncomeRepository *repositories.IncomeRepository
+	Router            *mux.Router
+	DB                *sql.DB
+	Config            *config.Config
+	UserRepository    *repositories.UserRepository
+	IncomeRepository  *repositories.IncomeRepository
+	ExpenseRepository *repositories.ExpenseRepository
 }
 
 func createTable() error {
@@ -36,9 +37,9 @@ func createTable() error {
 	}
 	defer db.Close()
 
+	fmt.Printf("createTable")
+
 	_, err = db.Exec(`
-	// DROP TABLE if exists incomes;
-	// DROP TABLE if exists users;
 	CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
 		email TEXT NOT NULL,
@@ -53,7 +54,25 @@ func createTable() error {
 		user_id INT,
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
+	CREATE TABLE IF NOT EXISTS expenses (
+		id SERIAL PRIMARY KEY,
+		amount INTEGER NOT NULL,
+		category TEXT NOT NULL,
+		created_at DATE NOT NULL,
+		user_id INTEGER NOT NULL,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+	CREATE TABLE IF NOT EXISTS budgets (
+		id SERIAL PRIMARY KEY,
+		income_ids INTEGER[] NOT NULL,
+		expense_ids INTEGER[] NOT NULL,
+		month TEXT NOT NULL,
+		user_id INTEGER NOT NULL,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
 	`)
+
+	fmt.Println(err)
 	if err != nil {
 		return err
 	}
@@ -70,7 +89,8 @@ func (app *App) Initialize() {
 	app.Router = mux.NewRouter()
 	userRepo := repositories.UserRepository{DB: app.DB}
 	incomeRepo := repositories.IncomeRepository{DB: app.DB}
-	app.initializeRoutes(&userRepo, &incomeRepo)
+	expenseRepo := repositories.ExpenseRepository{DB: app.DB}
+	app.initializeRoutes(&userRepo, &incomeRepo, &expenseRepo)
 }
 
 func (app *App) Run(addr string) {
@@ -88,7 +108,7 @@ func (app *App) Run(addr string) {
 	log.Fatal(http.ListenAndServe(addr, handler))
 }
 
-func (app *App) initializeRoutes(userRepo *repositories.UserRepository, incomeRepo *repositories.IncomeRepository) {
+func (app *App) initializeRoutes(userRepo *repositories.UserRepository, incomeRepo *repositories.IncomeRepository, expenseRepo *repositories.ExpenseRepository) {
 	app.Router.HandleFunc("/user", app.createUserHandler(userRepo)).Methods("POST")
 	app.Router.HandleFunc("/users", app.getUsersHandler(userRepo)).Methods("GET")
 	app.Router.HandleFunc("/login", app.loginHandler(userRepo)).Methods("POST")
@@ -96,6 +116,10 @@ func (app *App) initializeRoutes(userRepo *repositories.UserRepository, incomeRe
 	app.Router.HandleFunc("/incomes", app.getAllIncomes(incomeRepo)).Methods("GET")
 	app.Router.HandleFunc("/income/{incomeID}", app.editIncome(incomeRepo)).Methods("PUT")
 	app.Router.HandleFunc("/income/{incomeID}", app.deleteIncome(incomeRepo)).Methods("DELETE")
+	app.Router.HandleFunc("/expense", app.createExpense(expenseRepo)).Methods("POST")
+	app.Router.HandleFunc("/expenses", app.getAllExpenses(expenseRepo)).Methods("GET")
+	app.Router.HandleFunc("/expense/{expenseID}", app.editExpense(expenseRepo)).Methods("PUT")
+	app.Router.HandleFunc("/expense/{expenseID}", app.deleteExpense(expenseRepo)).Methods("DELETE")
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
@@ -391,5 +415,211 @@ func (a *App) deleteIncome(incomeRepo *repositories.IncomeRepository) http.Handl
 		}
 
 		respondWithJSON(w, http.StatusOK, map[string]string{"message": "Income deleted successfully"})
+	}
+}
+
+//Expense
+
+func (app *App) createExpense(expenseRepo *repositories.ExpenseRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		expense := models.Expense{}
+		err := json.NewDecoder(r.Body).Decode(&expense)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		// Extract the JWT token from the request header
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			respondWithError(w, http.StatusBadRequest, "Missing authorization token")
+			return
+		}
+		appConfig := config.GetConfig()
+		fmt.Println(appConfig.JwtSecret)
+		// Parse and validate the JWT token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			// Return the secret key used to sign the token
+			return []byte(appConfig.JwtSecret), nil
+		})
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, "Invalid authorization token")
+			return
+		}
+
+		// Extract the user ID from the JWT token
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			respondWithError(w, http.StatusUnauthorized, "Invalid authorization token")
+			return
+		}
+		userID := int(claims["id"].(float64))
+		fmt.Println(userID)
+
+		// Set the user ID in the income object
+		expense.UserID = userID
+
+		d, err := time.Parse(time.RFC3339, expense.Created_at)
+		if err != nil {
+			fmt.Println(err)
+		}
+		expense.Created_at = d.Format("2006-01-02")
+		fmt.Println(expense)
+
+		// Create the income record in the database
+		result, err := expenseRepo.CreateExpense(&expense)
+
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Failed to create income record")
+			return
+		}
+
+		// Return the created income record
+		respondWithJSON(w, http.StatusCreated, result)
+	}
+}
+
+func (app *App) getAllExpenses(expenseRepo *repositories.ExpenseRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			respondWithError(w, http.StatusBadRequest, "Missing authorization token")
+			return
+		}
+		appConfig := config.GetConfig()
+		// Parse and validate the JWT token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			// Return the secret key used to sign the token
+			return []byte(appConfig.JwtSecret), nil
+		})
+
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		userID := int(claims["id"].(float64))
+		fmt.Println(userID)
+		expenses, err := expenseRepo.GetAllExpenses(userID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		fmt.Println(expenses)
+
+		respondWithJSON(w, http.StatusOK, expenses)
+	}
+}
+
+func (a *App) editExpense(expenseRepo *repositories.ExpenseRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			respondWithError(w, http.StatusBadRequest, "Missing authorization token")
+			return
+		}
+		appConfig := config.GetConfig()
+		// Parse and validate the JWT token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			// Return the secret key used to sign the token
+			return []byte(appConfig.JwtSecret), nil
+		})
+
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		// Decode request body into Expense struct
+		var expense *models.Expense
+		err = json.NewDecoder(r.Body).Decode(&expense)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		userID := int(claims["id"].(float64))
+		fmt.Println(userID, "----------userID")
+
+		// Get expense ID from URL parameters
+		expenseID := mux.Vars(r)["expenseID"]
+		fmt.Println(expenseID)
+
+		// Parse expense ID to int
+		id, err := strconv.Atoi(expenseID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid expense ID")
+			return
+		}
+
+		expense.UserID = userID
+		expense.ID, err = strconv.Atoi(expenseID)
+
+		fmt.Println("expense---------", expense)
+
+		if err != nil {
+			fmt.Println("error with expenseID")
+			return
+		}
+		// Update expense in database
+		updatedExpense, err := expenseRepo.UpdateExpense(id, expense)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		respondWithJSON(w, http.StatusOK, updatedExpense)
+	}
+}
+
+func (a *App) deleteExpense(expenseRepo *repositories.ExpenseRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get expense ID from URL parameters
+		expenseID := mux.Vars(r)["expenseID"]
+		fmt.Println(expenseID)
+
+		// Parse expense ID to int
+		id, err := strconv.Atoi(expenseID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid expense ID")
+			return
+		}
+
+		// Delete expense from database
+		if err := expenseRepo.DeleteExpense(id); err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		respondWithJSON(w, http.StatusOK, map[string]string{"message": "Expense deleted successfully"})
 	}
 }
