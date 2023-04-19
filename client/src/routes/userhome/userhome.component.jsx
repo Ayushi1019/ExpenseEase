@@ -1,27 +1,35 @@
 import { Outlet } from 'react-router-dom';
 import './style.css';
 import { Tabs, Image } from "antd";
-import Login from '../../components/login/login.component';
-import Signup from '../../components/signup/signup.component';
+import Income from '../../components/income/income.component';
+import Expense from '../../components/expense/expense.component';
+import Budget from '../../components/budget/budget.component';
 
 
-const Home = () => {
+const Userhome = () => {
 
     const items = [
         {
           key: '1',
-          label: `Login`,
+          label: `Income`,
           children: <div className='form-section'>
-                <Login/>
+                <Income/>
           </div>,
         },
         {
           key: '2',
-          label: `Signup`,
+          label: `Expense`,
           children: <div className='form-section'>
-               <Signup/> 
+               <Expense/> 
           </div>,
         },
+        {
+            key: '3',
+            label: `Budget`,
+            children: <div className='form-section'>
+                 <Budget/> 
+            </div>,
+          },
       ];
 
   return (
@@ -40,4 +48,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default Userhome;
