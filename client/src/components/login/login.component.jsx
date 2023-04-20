@@ -2,6 +2,7 @@ import axios from 'axios';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { Button, Form, Input } from 'antd';
 import './style.css'
+import { useNavigate } from 'react-router-dom';
 
 
 function validateEmail(email) {
@@ -23,7 +24,7 @@ function validatePassword(password) {
 
 
 const Login = () => {
-
+  const navigate = useNavigate();
 
   const onFinish=(values)=>{
     const body = {
@@ -34,7 +35,13 @@ const Login = () => {
     axios.post('http://localhost:8080/login',body)
     .then(({data, status}) => {
       console.log(data)
-      localStorage.token = data.token
+      if(data.token !== null){
+        localStorage.token = data.token
+        navigate('/home');
+      }
+      else{
+        console.log("Error karke kuch aaya tho aaaa login nahi kar paa rahe hai aap log.")
+      }
     }).catch((error)=>{
       console.log(error)});
   }

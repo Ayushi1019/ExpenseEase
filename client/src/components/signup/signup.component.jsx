@@ -1,6 +1,7 @@
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { Button, Form, Input } from 'antd';
 import './style.css'
+import axios from 'axios';
 
 const Signup = () => {
 
@@ -13,7 +14,19 @@ const Signup = () => {
     }
 
     console.log(body)
-    
+    axios.post('http://localhost:8080/user',body)
+    .then(({data, status}) => {
+      console.log(data)
+      if (status == 201){
+        console.log("User created. We will go to login page in 3, 2, 1...")
+        window.location.href='/'
+      }
+      else{
+        console.log("User not created.")
+        window.location.href='/'
+      }
+    }).catch((error)=>{
+      console.log(error)});
   }
   return (
     <Form
