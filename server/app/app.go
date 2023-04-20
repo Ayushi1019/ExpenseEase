@@ -122,10 +122,12 @@ func (app *App) initializeRoutes(userRepo *repositories.UserRepository, incomeRe
 	app.Router.HandleFunc("/expenses", app.getAllExpenses(expenseRepo)).Methods("GET")
 	app.Router.HandleFunc("/expense/{expenseID}", app.editExpense(expenseRepo)).Methods("PUT")
 	app.Router.HandleFunc("/expense/{expenseID}", app.deleteExpense(expenseRepo)).Methods("DELETE")
+	app.Router.HandleFunc("/expense_by_month", app.getExpensesByMonthAndCategory(expenseRepo)).Methods("GET")
 	app.Router.HandleFunc("/budget", app.createBudget(budgetRepo)).Methods("POST")
 	app.Router.HandleFunc("/budgets", app.getAllBudgets(budgetRepo)).Methods("GET")
 	app.Router.HandleFunc("/budget/{budgetID}", app.editBudget(budgetRepo)).Methods("PUT")
 	app.Router.HandleFunc("/budget/{budgetID}", app.deleteBudget(budgetRepo)).Methods("DELETE")
+	app.Router.HandleFunc("/budget_by_month", app.getBudgetsByMonthAndCategory(budgetRepo)).Methods("GET")
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
@@ -833,5 +835,155 @@ func (a *App) deleteBudget(budgetRepo *repositories.BudgetRepository) http.Handl
 		}
 
 		respondWithJSON(w, http.StatusOK, map[string]string{"message": "Budget deleted successfully"})
+	}
+}
+
+func (a *App) getBudgetsByMonthAndCategory(budgetRepo *repositories.BudgetRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Retrieve all budgets from the database
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			respondWithError(w, http.StatusBadRequest, "Missing authorization token")
+			return
+		}
+		appConfig := config.GetConfig()
+		// Parse and validate the JWT token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			// Return the secret key used to sign the token
+			return []byte(appConfig.JwtSecret), nil
+		})
+
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		userID := int(claims["id"].(float64))
+
+		budgets, err := budgetRepo.GetAllbudgets(userID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Create a map to store the budgets grouped by month and category
+		budgetMap := make(map[string]map[string][]models.Budget)
+
+		// Group budgets by month and category
+		for _, budget := range budgets {
+			// Convert the budget's created_at time to a string in the format "YYYY-MM"
+
+			d, err := time.Parse("2006-01-02", budget.Created_at)
+			if err != nil {
+				fmt.Println(err)
+			}
+			monthStr := d.Format("2006-01-02")
+
+			// Check if a map entry exists for the month
+			_, ok := budgetMap[monthStr]
+			if !ok {
+				// Create a new map entry for the month
+				budgetMap[monthStr] = make(map[string][]models.Budget)
+			}
+
+			// Check if a map entry exists for the budget's category
+			_, ok = budgetMap[monthStr][budget.Category]
+			if !ok {
+				// Create a new map entry for the category
+				budgetMap[monthStr][budget.Category] = []models.Budget{}
+			}
+
+			// Add the budget to the appropriate category list
+			budgetMap[monthStr][budget.Category] = append(budgetMap[monthStr][budget.Category], budget)
+		}
+
+		// Return the budget map as JSON
+		respondWithJSON(w, http.StatusOK, budgetMap)
+	}
+}
+
+func (a *App) getExpensesByMonthAndCategory(expenseRepo *repositories.ExpenseRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Retrieve all expenses from the database
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			respondWithError(w, http.StatusBadRequest, "Missing authorization token")
+			return
+		}
+		appConfig := config.GetConfig()
+		// Parse and validate the JWT token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			// Return the secret key used to sign the token
+			return []byte(appConfig.JwtSecret), nil
+		})
+
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			respondWithError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		userID := int(claims["id"].(float64))
+
+		expenses, err := expenseRepo.GetAllExpenses(userID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Create a map to store the expenses grouped by month and category
+		expenseMap := make(map[string]map[string][]models.Expense)
+
+		// Group expenses by month and category
+		for _, expense := range expenses {
+			// Convert the expense's created_at time to a string in the format "YYYY-MM"
+
+			d, err := time.Parse("2006-01-02", expense.Created_at)
+			if err != nil {
+				fmt.Println(err)
+			}
+			monthStr := d.Format("2006-01-02")
+
+			// Check if a map entry exists for the month
+			_, ok := expenseMap[monthStr]
+			if !ok {
+				// Create a new map entry for the month
+				expenseMap[monthStr] = make(map[string][]models.Expense)
+			}
+
+			// Check if a map entry exists for the expense's category
+			_, ok = expenseMap[monthStr][expense.Category]
+			if !ok {
+				// Create a new map entry for the category
+				expenseMap[monthStr][expense.Category] = []models.Expense{}
+			}
+
+			// Add the expense to the appropriate category list
+			expenseMap[monthStr][expense.Category] = append(expenseMap[monthStr][expense.Category], expense)
+		}
+
+		// Return the expense map as JSON
+		respondWithJSON(w, http.StatusOK, expenseMap)
 	}
 }
