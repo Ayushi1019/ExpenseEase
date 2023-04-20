@@ -1,0 +1,45 @@
+.login-form {
+    max-width: 600px;
+    
+  }
+  .login-form-forgot {
+    float: right;
+    font-size: 18px;
+  }
+  .ant-col-rtl .login-form-forgot {
+    float: left;
+  }
+  .login-form-button {
+    width: 29%;
+    height: 44px;
+    font-size: 15px;
+    margin-top: 25px;
+    background-color: #00a62a;
+  }
+  .login-input .site-form-item-icon{
+    font-size: 24px;
+  }
+ .login-input .ant-input {
+    font-size: 22px !important;
+  }
+  .ant-image .ant-image-img {
+    width: 70%;
+    height: auto;
+    vertical-align: middle;
+}
+
+  .login-checkbox .remember-me{
+    font-size: 18px;
+    position: absolute;
+    margin-top: -25px !important;
+  }
+
+  .login-checkbox .ant-checkbox-inner{
+    width:30px;
+    height:30px
+  }
+
+  .login-checkbox .ant-checkbox .ant-checkbox-inner::after{
+    width:6.9px;
+    height:15px;
+  }
