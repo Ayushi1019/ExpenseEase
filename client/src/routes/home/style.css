@@ -29,3 +29,10 @@
 .form-section{
 
 }
+
+.action-btn{
+    width:28px;
+    padding: 2px;
+    color: white;
+    border: 0px;
+}

@@ -1,11 +1,22 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import './style.css';
 import { Tabs, Image } from "antd";
 import Login from '../../components/login/login.component';
 import Signup from '../../components/signup/signup.component';
+import { useEffect } from 'react';
 
 
 const Home = () => {
+  const navigate = useNavigate()
+
+  useEffect(()=>{
+    let token = localStorage.getItem("token")
+    console.log(token)
+    if(token){
+      navigate('/home')
+    }
+
+  },[navigate])
 
     const items = [
         {

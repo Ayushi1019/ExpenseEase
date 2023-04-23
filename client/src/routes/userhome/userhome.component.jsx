@@ -38,9 +38,11 @@ const Userhome = () => {
         <div className='setting-segment'>
             <Image preview={false} src='/home-wall.jpg' />
         </div>
+
+
         <div className='segment-container'>
+          
             <Tabs size='large' defaultActiveKey="1" items={items}/>
-            
         </div>
 
       <Outlet />

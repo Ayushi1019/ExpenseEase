@@ -1,28 +1,13 @@
 import axios from 'axios';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
-import { Button, Form, Input } from 'antd';
+import { Button, Form, Input, message } from 'antd';
 import './style.css'
-
-
-function validateEmail(email) {
-  const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-  return re.test(String(email).toLowerCase());
-}
-function validatePassword(password) {
-  if (password.length < 8) {
-      return false;
-  }
-  if (password.search(/[a-z]/i) < 0) {
-      return false;
-  }
-  if (password.search(/[0-9]/) < 0) {
-      return false;
-  }
-  return true;
-}
+import { API_URL } from '../../api';
+import { useNavigate } from 'react-router-dom';
 
 
 const Login = () => {
+  const navigate = useNavigate()
 
 
   const onFinish=(values)=>{
@@ -30,13 +15,22 @@ const Login = () => {
       "email" : values.email,
       "password" : values.password
     }
-    console.log(body)
-    axios.post('http://localhost:8080/login',body)
+    axios.post(API_URL + 'login',body)
     .then(({data, status}) => {
-      console.log(data)
-      localStorage.token = data.token
+
+      if(status === 200){
+        message.success("Login Successful!")
+        localStorage.setItem('token', data.token)
+        navigate("/home")
+
+      }
+      else{
+        message.error("Something went Wrong!")
+      }
+      
     }).catch((error)=>{
-      console.log(error)});
+      message.error("Error")
+    });
   }
   return (
     <Form

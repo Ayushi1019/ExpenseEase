@@ -1,5 +1,7 @@
-import { LockOutlined, MailOutlined } from '@ant-design/icons';
-import { Button, Form, Input } from 'antd';
+import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
+import { Button, Form, Input, message } from 'antd';
+import {Axios as axios} from 'axios';
+import { API_URL } from '../../api';
 import './style.css'
 
 const Signup = () => {
@@ -12,7 +14,29 @@ const Signup = () => {
       "password" : values.password
     }
 
-    console.log(body)
+    axios.post(API_URL + 'user',body)
+    .then(({data, status}) => {
+      const loginBody = {
+        'email': body.email,
+        'password': body.password
+      }
+      axios.post(API_URL + 'login',loginBody)
+    .then(({data, status}) => {
+
+      if(status === 200){
+        message.success("Login Successful!")
+        localStorage.setItem('token', data.token)
+      }
+      else{
+        message.error("Something went Wrong!")
+      }
+      
+    }).catch((error)=>{
+      message.error("Error")
+    });      
+    }).catch((error)=>{
+      message.error("Error")
+    });
     
   }
   return (
@@ -26,7 +50,7 @@ const Signup = () => {
         name="name"
         rules={[{ required: true, message: 'Please add your name' }]}
       >
-        <Input className='login-input' prefix={<MailOutlined className="site-form-item-icon" />} placeholder="Name" />
+        <Input className='login-input' prefix={<UserOutlined className="site-form-item-icon" />} placeholder="Name" />
       </Form.Item>
       <Form.Item
         name="email"
