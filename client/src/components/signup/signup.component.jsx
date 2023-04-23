@@ -1,8 +1,8 @@
 import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Form, Input, message } from 'antd';
-import {Axios as axios} from 'axios';
 import { API_URL } from '../../api';
 import './style.css'
+import axios from 'axios';
 
 const Signup = () => {
 
