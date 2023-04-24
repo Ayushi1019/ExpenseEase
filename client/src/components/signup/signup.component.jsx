@@ -71,7 +71,7 @@ const Signup = () => {
 
       <Form.Item>
         <Button className="login-form-button" type="primary" htmlType="submit">
-          Log in
+          Sign up
         </Button>
       </Form.Item>
     </Form>
