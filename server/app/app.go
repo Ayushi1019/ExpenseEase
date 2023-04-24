@@ -114,6 +114,7 @@ func (app *App) initializeRoutes(userRepo *repositories.UserRepository, incomeRe
 	app.Router.HandleFunc("/user", app.createUserHandler(userRepo)).Methods("POST")
 	app.Router.HandleFunc("/users", app.getUsersHandler(userRepo)).Methods("GET")
 	app.Router.HandleFunc("/login", app.loginHandler(userRepo)).Methods("POST")
+	app.Router.HandleFunc("/signout", app.signoutHandler(userRepo)).Methods("POST")
 	app.Router.HandleFunc("/income", app.createIncome(incomeRepo)).Methods("POST")
 	app.Router.HandleFunc("/incomes", app.getAllIncomes(incomeRepo)).Methods("GET")
 	app.Router.HandleFunc("/income/{incomeID}", app.editIncome(incomeRepo)).Methods("PUT")
@@ -219,6 +220,32 @@ func (app *App) loginHandler(userRepo *repositories.UserRepository) http.Handler
 		respondWithJSON(w, http.StatusOK, map[string]string{"token": tokenString})
 	}
 }
+
+func extractTokenFromHeader(r *http.Request) string {
+	// Get the authorization header value
+	authHeader := r.Header.Get("Authorization")
+	// Check if the authorization header is empty
+	if authHeader == "" {
+		return ""
+	}
+	// Return the token string
+	return authHeader
+}
+
+func (app *App) signoutHandler(userRepo *repositories.UserRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tokenString := extractTokenFromHeader(r)
+		if tokenString == "" {
+			respondWithError(w, http.StatusBadRequest, "Missing token")
+			return
+		}
+
+		respondWithJSON(w, http.StatusOK, map[string]string{"message": "Successfully signed out"})
+	}
+
+}
+
+//Income
 
 func (app *App) createIncome(incomeRepo *repositories.IncomeRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -963,7 +990,7 @@ func (a *App) getExpensesByMonthAndCategory(expenseRepo *repositories.ExpenseRep
 			if err != nil {
 				fmt.Println(err)
 			}
-			monthStr := d.Format("2006-01-02")
+			monthStr := d.Format("2006-01")
 
 			// Check if a map entry exists for the month
 			_, ok := expenseMap[monthStr]

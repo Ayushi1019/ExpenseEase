@@ -50,11 +50,13 @@ const Income = () => {
   const [incomeForm] = Form.useForm();
   const [incomes,setIncomes] = useState([])
 
+
   const [editingKey, setEditingKey] = useState('');
   const isEditing = (record) => record.ID === editingKey;
 
   useEffect(()=>{
     getAllIncomes()
+
   },[])
 
   const edit = (record) => {
@@ -83,6 +85,8 @@ const Income = () => {
     });
     
   }
+
+
 
 
   const onFinish=(values)=>{

@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import Footer from '../footer/footer.component';
-import {Button, Image} from "antd";
+import {Button, Image, message} from "antd";
 import './style.css'
 import { useEffect } from 'react';
 import { useState } from 'react';
@@ -16,18 +16,19 @@ const Header = () => {
   useEffect(()=>{
     let token = localStorage.getItem("token")
     
-    console.log(flag)
     if(token){
-      console.log(token)
       setFlag(true)
     }
-  },[])
+  },[flag])
 
   const signOut=()=>{
     axios.post(API_URL+'signout')
         .then(({data, status}) => {
           localStorage.removeItem("token")
+          message.success("Successfully logged out!")
+          
           navigate("/")
+          window.location.reload()
         }).catch((error)=>{
           console.log(error)})
   }

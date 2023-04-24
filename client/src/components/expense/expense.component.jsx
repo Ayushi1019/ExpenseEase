@@ -1,13 +1,66 @@
 import axios from 'axios';
 import {EditOutlined,DeleteOutlined,CheckOutlined,CloseOutlined} from "@ant-design/icons"
 
-import { Button, Form, Input, Popconfirm } from 'antd';
+import { Button, Form, Input, Popconfirm,Select } from 'antd';
 import './style.css'
 import React, { useState } from 'react';
 import { Table } from 'antd';
 import { useEffect } from 'react';
 import { API_URL } from '../../api';
-import moment from "moment"
+import moment from "moment";
+import { Pie } from '@ant-design/plots';
+
+
+const globalMonths = [
+  {
+    key: 1,
+    value: 'Jan'
+  },
+  {
+    key: 2,
+    value: 'Feb'
+  },
+  {
+    key: 3,
+    value: 'Mar'
+  },
+  {
+    key: 4,
+    value: 'Apr'
+  },
+  {
+    key: 5,
+    value: 'May'
+  },
+  {
+    key: 6,
+    value: 'Jun'
+  },
+  {
+    key: 7,
+    value: 'Jul'
+  },
+  {
+    key: 8,
+    value: 'Aug'
+  },
+  {
+    key: 9,
+    value: 'Sept'
+  },
+  {
+    key: 10,
+    value: 'Oct'
+  },
+  {
+    key: 11,
+    value: 'Nov'
+  },
+  {
+    key: 12,
+    value: 'Dec'
+  },
+]
 
 const EditableCell = ({
   editing,
@@ -49,12 +102,15 @@ const Expense = () => {
   const [form] = Form.useForm();
   const [expenseForm] = Form.useForm();
   const [expenses,setExpenses] = useState([])
+  const [graphData,setGraphData] = useState({1:[],2:[],3:[],4:[],5:[],6:[],7:[],8:[],9:[],10:[],11:[],12:[]})
+  const [selectedMonth,setMonth] = useState(1)
 
   const [editingKey, setEditingKey] = useState('');
   const isEditing = (record) => record.ID === editingKey;
 
   useEffect(()=>{
     getAllExpenses()
+    getFilteredData()
   },[])
 
   const edit = (record) => {
@@ -83,6 +139,66 @@ const Expense = () => {
     });
     
   }
+  const getFilteredData = ()=>{
+
+    axios.defaults.headers.common['Authorization'] = `${localStorage.getItem('token')}`;
+    axios.get(API_URL + 'expense_by_month')
+    .then(({data}) => {
+
+      let tmp = {}
+      let finalData = {}
+
+      for(let [key,val] of Object.entries(data)){
+
+        let newKey = parseInt(key.split("-")[1])
+        tmp = {
+          ...tmp,
+          [newKey] : val
+        }
+      }
+
+      for(let key of Object.keys(tmp)){
+
+        let newDict = {}
+
+        for(let [k,v] of Object.entries(tmp[key])){
+
+          if(k in newDict){
+            newDict[k] += parseInt(v.map(i=> i['Amount']))
+          }
+          else{
+            newDict[k] = parseInt(v.map(i=> i['Amount']))
+          }
+
+        }
+
+        tmp[key] = newDict
+      }
+
+      
+
+      for(let k of Object.keys(tmp)){
+        let d = []
+
+        for(let [key,val] of Object.entries(tmp[k])){
+          let obj = {
+            'type' : key,
+            'value' : val
+          }
+
+          d.push(obj)
+        }
+
+        finalData[k] = d
+      }
+      setGraphData(finalData)
+      
+    }).catch((error)=>{
+      console.log(error)
+    });
+    
+  }
+
 
 
   const onFinish=(values)=>{
@@ -91,7 +207,6 @@ const Expense = () => {
       "category" : values.category,
       "created_at" : moment(new Date()).format("YYYY-MM-DD")
     }
-    console.log(body)
     axios.post(API_URL+'expense',body)
     .then(({data, status}) => {
       getAllExpenses()
@@ -108,11 +223,11 @@ const Expense = () => {
           "category" : row['Category'],
           "created_at" : moment(new Date()).format("YYYY-MM-DD")
         }
-        console.log(body)
         axios.put(API_URL+'expense/'+id,body)
         .then(({data, status}) => {
           setEditingKey('');
           getAllExpenses()
+          getFilteredData()
         }).catch((error)=>{
           console.log(error)});
       } catch (errInfo) {
@@ -124,6 +239,7 @@ const Expense = () => {
       axios.delete(API_URL+'expense/'+id)
       .then(({data, status}) => {
         getAllExpenses()
+        getFilteredData()
       }).catch((error)=>{
         console.log(error)});
   }
@@ -190,6 +306,28 @@ const Expense = () => {
     };
   });
 
+
+  const config = {
+    appendPadding: 10,
+    angleField: 'value',
+    colorField: 'type',
+    radius: 0.9,
+    label: {
+      type: 'inner',
+      offset: '-30%',
+      content: ({ percent }) => `${(percent * 100).toFixed(0)}%`,
+      style: {
+        fontSize: 14,
+        textAlign: 'center',
+      },
+    },
+    interactions: [
+      {
+        type: 'element-active',
+      },
+    ],
+  };
+
   return (
     <div>
 
@@ -233,6 +371,26 @@ const Expense = () => {
         }}
       />
   </Form>
+
+  <div style={{marginTop:'30px'}}>
+    <Select value={selectedMonth} style={{
+        width: 80,
+      }} 
+      onChange={(val)=>setMonth(val)}>
+      {globalMonths.map(m=>
+
+      <Select.Option value={m.key}>{m.value}</Select.Option>
+        )}
+    </Select>
+    {
+      graphData[selectedMonth] !== undefined ?
+        <Pie {...config} data={graphData[selectedMonth]}/>
+          :
+        <div>
+          No data
+      </div>
+    }
+  </div>
     </div>
   );
 };

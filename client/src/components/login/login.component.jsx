@@ -22,6 +22,7 @@ const Login = () => {
         message.success("Login Successful!")
         localStorage.setItem('token', data.token)
         navigate("/home")
+        window.location.reload()
 
       }
       else{
